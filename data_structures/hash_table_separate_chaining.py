@@ -42,6 +42,12 @@ class HashTableSeparateChaining(HashTable[str, V]):
         """
         Deletes an item from our hash table
         :raises KeyError: when the key doesn't exist
+        :complexity:
+            Best: O(K) where K is the length of the key (for hashing). Happens when the chain (linked list) does
+                not have many elements.
+            Worst: O(N * K) where N is the number of items in the hash table and K is the length of the key.
+                Happens when the position has many elements and we have to traverse the linked list, comparing
+                all the keys.
         """
         position = self.hash(key)
         if self.__table[position] is None:
@@ -62,12 +68,17 @@ class HashTableSeparateChaining(HashTable[str, V]):
     def __setitem__(self, key: str, data: V) -> None:
         """
         Set a (key, data) pair in our hash table
+        :complexity:
+            Best: O(K) where K is the length of the key (for hashing). Happens when the position is empty.
+            Worst: O(N * K) where N is the number of items in the hash table and K is the length of the key.
+                Happens when the position is not empty and we have to traverse the linked list, comparing
+                all the keys.
         """
         position = self.hash(key)
         if self.__table[position] is None:
             self.__table[position] = LinkedList()
 
-        # Attempt to find the key in our linked list
+        # Attempt to find the key in our linked list (now is a balanced tree)
         if len(self.__table[position]) > 0:
             for index, item in enumerate(self.__table[position]):
                 if item[0] == key:
@@ -94,6 +105,11 @@ class HashTableSeparateChaining(HashTable[str, V]):
         """
         Get the data associated with a key
         :raises KeyError: when the key doesn't exist
+        :complexity:
+            Best: O(K) where K is the length of the key (for hashing). Happens when the chain at the position
+                doesn't have many items.
+            Worst: O(N * K) where N is the number of items in the hash table and K is the length of the key.
+                Happens when we have to traverse a long chain to find the key and compare all the keys.
         """
         position = self.hash(key)
         if self.__table[position] is None:
@@ -115,7 +131,7 @@ class HashTableSeparateChaining(HashTable[str, V]):
         """
         Universal Hash function
         :returns: a valid position (0 <= value < table_size) in the hash table
-        :complexity: O(K) where K is the size of the key
+        :complexity: O(K) where K is the length of the key
         """
         value = 0
         a = 31415
@@ -143,7 +159,10 @@ class HashTableSeparateChaining(HashTable[str, V]):
     def keys(self) -> ArrayR[str]:
         """
         Returns all keys in the hash table
-        :complexity: O(N) where N is the number of items in our hash table
+        :complexity: O(N + S) where N is the number of items in our hash table
+        and S is the table size. Depending on how the table is created, if the table size
+        is not variable (e.g. it's always using the default size), then S can be ignored as
+        a constant, simplifying the complexity to O(N).
         """
         res = ArrayR(self.__length)
         i = 0
@@ -157,7 +176,10 @@ class HashTableSeparateChaining(HashTable[str, V]):
     def values(self) -> ArrayR[V]:
         """
         Returns all values in the hash table
-        :complexity: O(N) where N is the number of items in our hash table
+        :complexity: O(N + S) where N is the number of items in our hash table
+        and S is the table size. Depending on how the table is created, if the table size
+        is not variable (e.g. it's always using the default size), then S can be ignored as
+        a constant, simplifying the complexity to O(N).
         """
         res = ArrayR(self.__length)
         i = 0

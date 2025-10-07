@@ -20,19 +20,17 @@ class Player:
             age (int): The age of the player
 
         Complexity:
-            n= the table size
+            Best Case Complexity: O(1)
+            Worst Case Complexity: O(1)
 
-            Best Case Complexity: O(n)
-            Worst Case Complexity: O(n)
-
-            The best and worst case complexity are the same as the complexity of initializing player class are all O(1) except for the creation of LazyDoubleTable,
-            as allocating memory of size n has a complexity of O(n), which dominates other complexity.
+            The best and worst case complexity are the same as the complexity of initializing player class are all O(1) including the creation of LazyDoubleTable,
+            as no size is inputted, which lead to a LazyDoubleTable with constant fixed size of 5 to be created initially.
         """
         self.name = name
         self.position = position
-        self.birth_year = datetime.date.today().year - age #getting the birth year although age is entered
+        self.birth_year = datetime.date.today().year - age #getting the birth year although age is inputted
         self.goals = 0
-        self.stats = LazyDoubleTable() # a dict/ hash table
+        self.stats = LazyDoubleTable()
 
     def reset_stats(self) -> None:
         """
@@ -42,29 +40,30 @@ class Player:
         I.e. all stats that were previously set should still be available, with a value of 0.
 
         Complexity:
-            k = number of keys in the table
-            n = the table size
+            m = the table size
+            n = number of items in the table
+            k = length of the key
 
-            Best Case Complexity: O(k * len(key))
-            The for loop will iterate k times, Thus, O(k).
+            Best Case Complexity: O(m + n * k)
+            Getting all the keys in the hash table by invoking keys() method have a time complexity of O(m). The for loop will iterate n times, Thus, O(n).
             Updating the value of the statistic key will invoke __setitem__() magic method which invoke the __hashy_probe() method too.
-            The best case of __hashy_probe() method when is_insert = True is O(len(key)). Best case in __hashy_probe() method is when adding a new key,
-            an empty position is found exactly at the hash position of the key where no collision occurs, which is at the first iteration of the for loop.
-            Since the for loop in reset_stats() method iterate k times, the overall complexity of reset_stats() method is
-            O(k) * O(len(key)) = O(k * len(key))
+            The best case of __hashy_probe() method when is_insert = True is O(k). Best case in __hashy_probe() method is when searching an existing key,
+            the key is found exactly at the hash position of the key without probing, where no collision occurs.
+            Since the for loop in reset_stats() method iterate n times, the overall complexity of reset_stats() method is O(m) + (O(n) * O(k)) = O(m + n * k)
 
-            Worst Case Complexity: O(k * len(key) + k * n * comp (str))
-            The for loop will iterate k times, Thus, O(k).
+            Worst Case Complexity: O(m + n^2 * k)
+            Getting all the keys in the hash table by invoking keys() method have a time complexity of O(m). The for loop will iterate n times, Thus, O(n).
             Updating the value of the statistic key will invoke __setitem__() magic method which invoke the __hashy_probe() method too.
-            The worst case of __hashy_probe() method when is_insert = True is O(len(key) + n * comp(str)).
-            Worst case in __hashy_probe() method is when adding a new key, all the reachable slots by stepping already have an item,
-            except when an empty position/DeletedItemObject is found at the last iteration of iterating table size, this cause the for loop to loop through the items in hash table due to collisions.
-            Since the for loop in reset_stats() method iterate k times, the overall complexity of reset_stats() method is
-            O(k) * O(len(key) + n * comp(str)) = O(k * len(key) + k * n * comp (str))
+            The worst case of __setitem__() is not used because while updating the values of existing keys, a rehash will not happen as no new keys are added to the table.
+            Thus, The worst case of __hashy_probe() in __setitem__() is used for this method instead. The worst case of __hashy_probe() method when is_insert = True is O(n * k).
+            Worst case in __hashy_probe() method is when searching an existing key, all the reachable slots by stepping do not have the key we are searching for,
+            except until the last iteration of iterating the items in the table.
+            Since the for loop in reset_stats() method iterate n times, the overall complexity of reset_stats() method is O(m) + (O(n) * O(n * k)) = O(m + n^2 * k)
         """
-        #looping through the keys
-        for stat in self.stats.keys(): #O(n)
-            self.stats[stat] = 0 # best: O(len(key)), worst: O(n * len(key) + n^2 * comp(str)), n=table size )
+        keys = self.stats.keys()
+
+        for stat in keys:
+            self.stats[stat] = 0
 
     def __setitem__(self, statistic: str, value: int) -> None:
         """
@@ -75,19 +74,22 @@ class Player:
             value (int): The value of the stat
 
         Complexity:
-            n = the table size
+            n = number of items in the table
+            k = length of the key
 
-            Best Case Complexity: O(len(key))
-            While setting a value in the hash table, the position of the statistic key is found by invoking __hashy_probe() method, the best case of __hashy_probe() method when is_insert = True
-            is O(len(key)). Best case in __hashy_probe() method is when adding a new key, an empty position is found exactly at the hash position of the key where no collision occurs,
-            which is at the first iteration of the for loop. Thus, the overall complexity is dominated by the best case __hashy_probe() complexity.
+            Best Case Complexity: O(k)
+            While setting a value in the hash table, the __setitem__() magic method of LazyDoubleTable is invoked,
+            where the position of the statistic key is found by invoking __hashy_probe() method, the best case of __hashy_probe() method when is_insert = True
+            is O(k). Best case in __hashy_probe() method is when adding a new key, an empty position is found exactly at the hash position of the key without probing, where no collision occurs.
+            Thus, the overall complexity is dominated by the best case __hashy_probe() complexity.
 
-            Worst Case Complexity: O(n * len(key) + n^2 * comp(str))
-            While setting a value in the hash table, the position of the statistic key is found by invoking __hashy_probe() method, the worst case of __hashy_probe() method when is_insert = True
-            is O(len(key) + n * comp(str)). Worst case in __hashy_probe() method is when adding a new key, all the reachable slots by stepping already have an item,
-            except when an empty position/DeletedItemObject is found at the last iteration of iterating table size, this cause the for loop to loop through the items in hash table due to collisions.
-            Worst case of __setitem__() method happens when the hash table requires rehashing after adding an item, the worst case of __rehash() method is O(n * len(key) + n^2 * comp(str)).
-            Thus, the overall complexity is dominated by the __rehash() complexity, ie. (O(len(key) + n * comp(str))) + (O(n * len(key) + n^2 * comp(str))) = O(n * len(key) + n^2 * comp(str))
+            Worst Case Complexity: O(n^2 * k)
+            While setting a value in the hash table, the __setitem__() magic method of LazyDoubleTable is invoked,
+            where the position of the statistic key is found by invoking __hashy_probe() method, the worst case of __hashy_probe() method when is_insert = True
+            is O(n * k). Worst case in __hashy_probe() method is when adding a new key, all the reachable slots by stepping already have an item,
+            except when an empty position/DeletedItemObject is found at the last iteration of iterating the items in the table.
+            Worst case of __setitem__() method happens when the hash table requires rehashing after adding an item, the worst case of __rehash() method is O(n^2 * k).
+            Thus, the overall complexity is dominated by the __rehash() complexity, ie. O(n * k) + O(n^2 * k) = O(n^2 * k).
         """
         self.stats[statistic] = value
 
@@ -102,16 +104,19 @@ class Player:
             int: The value of the stat
 
         Complexity:
-            n = the table size
+            n = number of items in the table
+            k = length of the key
 
-            Best Case Complexity: O(len(key))
-            When __getitem__() is invoked, the position of the statistic key is found by invoking __hashy_probe() method, the best case of __hashy_probe() method when is_insert = False
-            is O(len(key)). Best case in __hashy_probe() method is when searching for an existing key, the tuple storing the wanted key and value is found exactly at the hash position of the key without probing,
+            Best Case Complexity: O(k)
+            When __getitem__() magic method of LazyDoubleTable is invoked, the position of the statistic key is found by invoking __hashy_probe() method,
+            the best case of __hashy_probe() method when is_insert = False is O(k).
+            Best case in __hashy_probe() method is when searching for an existing key, the tuple storing the wanted key and value is found exactly at the hash position of the key without probing,
             Thus, the overall complexity of __getitem__() is dominated by the best case of __hashy_probe() complexity
 
-            Worst Case Complexity: O(len(key) + n * comp(str))
-            When __getitem__() is invoked, the position of the statistic key is found by invoking __hashy_probe() method, the worst case of __hashy_probe() method when is_insert = False
-            is O(len(key) + n * comp(str)). Worst case in __hashy_probe() method is when all the reachable slots by stepping do not have the key we are searching for until we reach the last iteration of iterating the table size.
+            Worst Case Complexity: O(n * k)
+            When __getitem__() magic method of LazyDoubleTable is invoked, the position of the statistic key is found by invoking __hashy_probe() method,
+            the worst case of __hashy_probe() method when is_insert = False is O(n * k).
+            Worst case in __hashy_probe() method is when all the reachable slots by stepping do not have the key we are searching for until we reach the last iteration of iterating the items in the table.
             Thus, the overall complexity of __getitem__() is dominated by the worst case of __hashy_probe() complexity
         """
         return self.stats[statistic]
@@ -128,7 +133,7 @@ class Player:
             Worst Case Complexity: O(1)
 
             The best and worst case complexity are the same because every operation inside get_age() method ie. getting the current year now,
-            and subtracting self.birth_year takes constant time, independent of any input size. Thus, O(1).
+            and subtracting self.birth_year takes constant time, which is independent of any input size. Thus, O(1).
         """
         return datetime.datetime.now().year - self.birth_year
 
@@ -147,7 +152,7 @@ class Player:
         stats_str = ", ".join(f"{key}: {self.stats[key]}" for key in self.stats.keys())
         return (
             f"Player: {self.name}\n"
-            f"Position: {self.position.name}\n"  # Assuming PlayerPosition is an enum
+            f"Position: {self.position.name}\n"  
             f"Age: {self.get_age()}\n"
             f"Goals: {self.goals}\n"
             f"Stats: {{{stats_str}}}"

@@ -23,17 +23,26 @@ class LinearProbeTable(HashTable[str, V]):
     HASH_BASE = 31
 
     def __init__(self, sizes = None) -> None:
+        """
+        Constructor for the LinearProbeTable class.
+        :param sizes: Optional list of sizes to use for the hash table.
+                      If not provided, a default list of sizes will be used.
+        :complexity: O(1) - Assuming the default sizes are used, we can assume the array is created in O(1) time.
+            If you use this function in any way that passes some variable input for the sizes, then the complexity
+            needs to change accordingly.
+        """
         if sizes is not None:
             self.TABLE_SIZES = sizes
 
         self.__size_index = 0
         self.__array: ArrayR[tuple[str, V]] = ArrayR(self.TABLE_SIZES[self.__size_index])
         self.__length = 0
+        self.collisions = 0  # Counter for collisions
 
     def hash(self, key: str) -> int:
         """
         Hash a key for insert/retrieve/update into the hashtable.
-        :complexity: O(len(key))
+        :complexity: O(K) where K is the length of the key.
         """
         value = 0
         a = 31415
@@ -55,19 +64,26 @@ class LinearProbeTable(HashTable[str, V]):
     def __linear_probe(self, key: str, is_insert: bool) -> int:
         """
         Find the correct position for this key in the hash table using linear probing.
-        :complexity best: O(hash(key)) first position is empty
-        :complexity worst: O(hash(key) + N*comp(str)) when we've searched the entire table
-                        where N is the tablesize
+        :complexity: 
+            Best: O(K) happens when we hash the key and the position is empty.
+            Worst: O(N * K) happens when we hash the key but the position is taken and we have to
+                search the entire table. For each position, we have to check if the key is equal to the one in the table,
+                hence the K factor.
+            N is the number of items in the table.
+            K is the length of the key.
         :raises KeyError: When the key is not in the table, but is_insert is False.
         :raises FullError: When a table is full and cannot be inserted.
         """
         # Initial position
         position = self.hash(key)
+        initial_position = position
 
         for _ in range(self.table_size):
             if self.__array[position] is None:
                 # Empty spot. Am I upserting or retrieving?
                 if is_insert:
+                    if position != initial_position:
+                        self.collisions += 1
                     return position
                 else:
                     raise KeyError(key)
@@ -75,6 +91,8 @@ class LinearProbeTable(HashTable[str, V]):
                 return position
             else:
                 # Taken by something else. Time to linear probe.
+                if position != initial_position:
+                    self.collisions += 1  # Increment collision counter
                 position = (position + 1) % self.table_size
 
         if is_insert:
@@ -85,7 +103,7 @@ class LinearProbeTable(HashTable[str, V]):
     def keys(self) -> ArrayR[str]:
         """
         Returns all keys in the hash table.
-        :complexity: O(N) where N is the number of items in the table.
+        :complexity: O(N) where N is the table size.
         """
         res = ArrayR(self.__length)
         i = 0
@@ -99,7 +117,7 @@ class LinearProbeTable(HashTable[str, V]):
         """
         Returns all values in the hash table.
 
-        :complexity: O(N) where N is the number of items in the table.
+        :complexity: O(N) where N is the table size.
         """
         res = ArrayR(self.__length)
         i = 0
@@ -136,11 +154,13 @@ class LinearProbeTable(HashTable[str, V]):
         """
         Set an (key, value) pair in our hash table.
 
-        :complexity: See linear probe.
+        :complexity:
+            Best: Same as linear probe, when no rehashing is needed.
+            Worst: Sum of __linear_probe and __rehash.
         :raises FullError: when the table cannot be resized further.
         """
 
-        position = self.__linear_probe(key, True)
+        position = self.__linear_probe(key, True) # best: O(1), worst: O(n)
 
         if self.__array[position] is None:
             self.__length += 1
@@ -148,14 +168,21 @@ class LinearProbeTable(HashTable[str, V]):
         self.__array[position] = (key, data)
 
         if len(self) > self.table_size / 2:
-            self.__rehash()
+            self.__rehash() # best: O(N * K), worst: O(N^2 * K)
 
     def __delitem__(self, key: str) -> None:
         """
         Deletes a (key, value) pair in our hash table.
 
-        :complexity best: O(hash(key)) deleting item is not probed and in correct spot.
-        :complexity worst: O(N*hash(key)+N^2*comp(str)) deleting item is midway through large chain.
+        :complexity: 
+            Best: O(K) when the key is at the beginning of the table and no cluster is present to rehash.
+            Worst: O(N^2 * K) when the key is at the beginning of a large cluster and we have to effectively
+                rehash all elements. And each element has to linear probe over all (or a factor of) other elements currently
+                in the table. This analysis is assuming K is representing an average key length, and is being used
+                as the cost of comparing two keys as well as cost of hashing a key.
+            N is the number of items in the table.
+            K is the length of the key.
+
         :raises KeyError: when the key doesn't exist.
         """
         position = self.__linear_probe(key, False)
@@ -179,9 +206,18 @@ class LinearProbeTable(HashTable[str, V]):
         """
         Need to resize table and reinsert all values
 
-        :complexity best: O(N*hash(K)) No probing.
-        :complexity worst: O(N*hash(K) + N^2*comp(K)) Lots of probing.
-        Where N is len(self)
+        :complexity: 
+            Best: O(N * K) happens when all items can be inserted immediately after being hashed
+                with no probing needed.
+            Worst: O(N^2 * K) happens when all items need maximum probing to be inserted in the new table.
+                This is assuming K here is representing an average key length, and is being used
+                as the cost of comparing two keys as well as cost of hashing a key.
+            
+            N is the number of items in the table.
+            K is the length of the key.
+            This analysis is assuming the default table sizes are used, and thus the
+                cost of creating a new table is constant. This assumption can be extended to any table size
+                as long as the sizes are growing by a constant factor (e.g. each table size is almost double the previous one).
         """
         old_array = self.__array
         self.__size_index += 1
@@ -190,6 +226,7 @@ class LinearProbeTable(HashTable[str, V]):
             return
         self.__array = ArrayR(self.TABLE_SIZES[self.__size_index])
         self.__length = 0
+        self.collisions = 0  # Reset collision counter on rehash
         for item in old_array:
             if item is not None:
                 key, value = item
@@ -199,7 +236,6 @@ class LinearProbeTable(HashTable[str, V]):
         """
         Returns all they key/value pairs in our hash table (no particular
         order).
-        :complexity: O(N * (str(key) + str(value))) where N is the table size
         """
         result = ""
         for item in self.__array:

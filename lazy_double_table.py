@@ -20,7 +20,7 @@ class LazyDoubleTable(HashTable[str, V]):
     Type Arguments:
         - V: Value Type.
     """
-    
+
     # No test case should exceed 1 million entries.
     TABLE_SIZES = (5, 13, 29, 53, 97, 193, 389, 769, 1543, 3079, 6151, 12289, 24593, 49157, 98317, 196613, 393241, 786433, 1572869)
     HASH_BASE = 31
@@ -36,7 +36,7 @@ class LazyDoubleTable(HashTable[str, V]):
         self.__size_index = 0
         self.__array: ArrayR[tuple[str, V]] = ArrayR(self.TABLE_SIZES[self.__size_index])
         self.__length = 0
-    
+
     @property
     def table_size(self) -> int:
         return len(self.__array)
@@ -50,7 +50,7 @@ class LazyDoubleTable(HashTable[str, V]):
     def keys(self) -> ArrayR[str]:
         """
         Returns all keys in the hash table.
-        :complexity: O(N) where N is the number of items in the table.
+        :complexity: O(N) where N is the table size.
         """
         res = ArrayR(self.__length)
         i = 0
@@ -64,7 +64,7 @@ class LazyDoubleTable(HashTable[str, V]):
         """
         Returns all values in the hash table.
 
-        :complexity: O(N) where N is the number of items in the table.
+        :complexity: O(N) where N is the table size.
         """
         res = ArrayR(self.__length)
         i = 0
@@ -96,10 +96,10 @@ class LazyDoubleTable(HashTable[str, V]):
         """
         position = self.__hashy_probe(key, False)
         return self.__array[position][1]
-    
+
     def is_empty(self) -> bool:
         return self.__length == 0
-    
+
     def __str__(self) -> str:
         """
         Returns all they key/value pairs in our hash table (no particular
@@ -115,7 +115,8 @@ class LazyDoubleTable(HashTable[str, V]):
     def hash(self, key: str) -> int:
         """
         Hash a key for insert/retrieve/update into the hashtable.
-        :complexity: O(len(key))
+        k = length of the key
+        :complexity: O(k)
         """
         value = 0
         a = 31415
@@ -124,7 +125,7 @@ class LazyDoubleTable(HashTable[str, V]):
             a = a * self.HASH_BASE % (self.table_size - 1)
         return value
 
-    def gcd (self, a: int, b: int)-> bool:
+    def gcd (self, a: int, b: int)-> int:
         """
             Computes the greatest common divisor (GCD) of two integers using the Euclidean algorithm.
 
@@ -136,12 +137,12 @@ class LazyDoubleTable(HashTable[str, V]):
                 int: GCD of a and b
 
             Complexity:
-                According to ed, complexity of the code for co-prime checking is free to be omitted.
+                According to Ed, complexity of the code for co-prime checking is free to be omitted.
             """
         while b != 0:
-            a, b= b, a % b
+            a, b = b, a % b
 
-        #when b becomes 0, a is the GCD
+        # when b becomes 0, a is the GCD
         return a
 
     def hash2(self, key: str) -> int:
@@ -155,18 +156,22 @@ class LazyDoubleTable(HashTable[str, V]):
             int: the step size
 
         Complexity:
-            Best Case Complexity: O(len(key))
-            Worst Case Complexity: O(len(key))
+            k = length of the key
 
-            Both the best and worst case is O(len(key)) because the complexity is dominated by the for loop which iterates over every character in the key,
+            Best Case Complexity: O(k)
+            Worst Case Complexity: O(k)
+
+            Both the best and worst case is O(k) because the complexity is dominated by the for loop which iterates over every character in the key,
             that depends on the length of key. The remaining code performs fixed arithmetic operations which are constant time operations, ie. O(1)
-            therefore O(len(key)) dominates this method.
+            therefore O(k) dominates this method.
         """
         value = 0
-        a = 27449   # a large prime number
+        a = 27449   # a large prime number, large prime can spread out step sizes
+        prime_multiplier = 92821 # class variable hash base is too small, step sizes might repeat too quickly
+
         for char in key:
             value = (ord(char) + a * value) % (self.table_size - 1) # the second hash function
-            a = (a * (self.HASH_BASE + 2)) % (self.table_size - 1) # using a different hash base by adding 2 to it
+            a = (a * prime_multiplier) % (self.table_size - 1) # don't use same hash base to introduce independency from hash() method
 
         step = max(1, value) #double hashing by different step size, step size cant be 0
 
@@ -191,45 +196,48 @@ class LazyDoubleTable(HashTable[str, V]):
             RuntimeError: When a table is full and cannot be inserted.
 
         Complexity:
-            n = the table size
+            k = length of the key
+            n = number of items in the table
 
-            Best Case Complexity: O(len(key))
-            The hash position and step size of the inputted key is computed by primary hash and secondary hash, which has a complexity of both O(len(key)).
+            Best Case Complexity: O(k)
+            The hash position and step size of the inputted key is computed by primary hash and secondary hash method, which has a complexity of both O(k).
             When is_insert = False, best case is when searching for an existing key, the tuple storing the wanted key and value is found exactly at the hash position of the key without probing,
-            ie. the else case of the for loop. Thus, the loop will iterate once only as the key is found after comparing the key in the table to the inputted key string. Therefore, O(1) * O(comp(str)).
-            Thus, the overall best complexity for when is_insert = False is O(len(key)) + O(len(key)) + ( O(1) * O(comp(str)) ) =  O(len(key) + comp(str)).
-            Since cost of comparing the key to another string is equal to the cost of hashing the key, thus the overall complexity is O(len(key) + comp(str)) = O(len(key)).
-            When is_insert = True, best case is when adding a new key, an empty position is found exactly at the hash position of the key where no collision occur,
-            ie. entering the elif case of the for loop. Thus, the loop will iterate once only as the loop will return the empty position immediately. Thus, O(1) * O(1) = O(1).
-            Therefore, the overall best complexity for when is_insert = True is O(len(key))+ O(len(key)) + (O(1)) = O(len(key))
+            in the else case of the for loop. Thus, the loop will iterate once only as the inputted key is found after comparing the key in the table to the inputted key string, hence the K factor.
+            This analysis is assuming k is representing an average key length, and is being used as the cost of comparing two keys as well as cost of hashing a key.
+            Since cost of comparing a key to another key string is equal to the cost of hashing the key. Therefore, O(1) * O(comp(str)) = O(1) * O(k).
+            Thus, the overall best complexity for when is_insert = False is O(k) + O(k) + ( O(1) * O(k) ) =  O(k).
+            When is_insert = True, best case is when adding a new key, an empty position is found exactly at the hash position of the key without probing, where no collision occur,
+            in the elif case of the for loop. Thus, the loop will iterate once only as the loop will return the empty position immediately. Thus, O(1) * O(1) = O(1).
+            Therefore, the overall best complexity for when is_insert = True is O(k)+ O(k) + (O(1)) = O(k) too.
 
-            Worst Case Complexity: O(len(key) + n * comp(str))
-            The hash position and step size of the inputted key is computed by primary hash and secondary hash, which has a complexity of both O(len(key)).
-            When is_insert = False, worst case is when all the reachable slots by stepping do not have the key we are searching for until the position that is lastly stepped, ie. we reach the last iteration of iterating the table size
-            When is_insert = True, worst case is when adding a new key, all the reachable slots by stepping already have an item except when an empty position/DeletedItemObject is found at the last iteration of iterating table size,
-            This cause the for loop to loop through the items in hash table due to collisions, no matter the item is a DeletedItem object or a tuple containing key and value
-            that involves comparison of the key in the table and inputted key string, ie. O(comp(str)) too.
-            Thus, the loop will iterate the entire table size as the key we are finding/ empty slot is at the position which is stepped lastly. Thus, O(n).
-            At each iteration, the key in the table is compared to the inputted key string, ie. O(comp(str)). Therefore, the overall complexity of this loop is O(n) * O(comp(str)).
-            Thus, the overall worst complexity for when is_insert = False and is_insert = True is O(len(key)) + O(len(key)) + ( O(n) * O(comp(str)) ) =  O(len(key) + n * comp(str)).
+            Worst Case Complexity: O(n * k)
+            The hash position and step size of the inputted key is computed by primary hash and secondary hash method, which has a complexity of both O(k).
+            When is_insert = False, worst case is when all the reachable slots by stepping do not have the key we are searching for until we reach the position that is lastly stepped, ie. we reach the last iteration of iterating items in the table
+            When is_insert = True, worst case is when adding a new key, all the reachable slots by stepping already have an item except when an empty position/DeletedItemObject is found at the last iteration of iterating items in the table,
+            Thus, the loop will iterate through all the items in the hash table due to collisions, as the key we are finding/ empty slot is at the position which is stepped lastly. Thus, O(n).
+            At each position, the key in the table is compared to the inputted key string, hence the K factor.
+            This analysis is assuming k is representing an average key length, and is being used as the cost of comparing two keys as well as cost of hashing a key.
+            Since cost of comparing a key to another key string is equal to the cost of hashing the key. Therefore, O(n) * O(comp(str)) = O(n) * O(k).
+            Thus, the overall worst complexity for when is_insert = False and is_insert = True is O(k) + O(k) + ( O(n) * O(k) ) = O(n * k)
         """
         # finding the position where the key will be hashed to and the step size
-        position = self.hash(key)  #O(len(key))
-        step = self.hash2(key) #O(len(key))
-        first_deleted = None #to rmb the first deleted slot for possible reuse when inserting
+        position = self.hash(key)
+        step = self.hash2(key)
 
-        for _ in range(self.table_size): #O(n)
+        deleted_status = None #to rmb the first deleted slot for possible reuse when inserting
+
+        for _ in range(self.table_size):
             current_item = self.__array[position]
 
             #check if an item is deleted first
             if current_item is DeletedItem:
-                if is_insert and first_deleted is None:
-                    first_deleted = position  # remember first deleted slot
+                if is_insert and deleted_status is None:
+                    deleted_status = position  # remember first deleted slot
 
             elif current_item is None:
                 if is_insert:
-                    if first_deleted is not None:
-                        return first_deleted
+                    if deleted_status is not None:
+                        return deleted_status # to reuse the deleted item's space
                     else:
                         return position
                 else: # when searching for item
@@ -237,7 +245,7 @@ class LazyDoubleTable(HashTable[str, V]):
 
             # current_item is a tuple (key, value)
             else:
-                if current_item[0] == key: #O(comp(str))
+                if current_item[0] == key:
                     return position
 
             #move to the next slot, adding step size computed from hash 2
@@ -262,34 +270,35 @@ class LazyDoubleTable(HashTable[str, V]):
 
         Returns:
             None
-        
+
         Complexity:
-            n = the table size
+            k = length of the key
+            n = number of items in the table
 
-            Best Case Complexity: O(len(key))
+            Best Case Complexity: O(k)
             While setting an item in a hash table, the position of the key is found by invoking __hashy_probe() method, the best case of __hashy_probe() method when is_insert = True
-            is O(len(key)). Best case in __hashy_probe() is when adding a new key, an empty position is found exactly at the hash position of the key where no collision occurs.
-            Thus, the overall best complexity is dominated by the __hashy_probe() complexity, O(len(key)), where no rehashing is required.
+            is O(k). Best case in __hashy_probe() is when adding a new key, an empty position is found exactly at the hash position of the key without probing, where no collision occurs.
+            Thus, the overall best complexity is dominated by the __hashy_probe() complexity, O(k), where no rehashing is required.
 
-            Worst Case Complexity: O(n * len(key) + n^2 * comp(str))
+            Worst Case Complexity: O(n^2 * k)
             While setting an item in a hash table, the position of the key is found by invoking __hashy_probe() method, the worst case of __hashy_probe() method when is_insert = True
-            is O(len(key) + n * comp(str)). Worst case in __hashy_probe() method is when adding a new key, all the reachable slots by stepping already have an item,
-            except when an empty position/DeletedItemObject is found at the last iteration of iterating table size, this cause the for loop to loop through the items in hash table due to collisions.
-            Worst case of __setitem__() method happens when the hash table requires rehashing after adding an item, the worst case of __rehash() method is O(n * len(key) + n^2 * comp(str)).
-            Thus, the overall complexity is dominated by the __rehash() complexity, ie. (O(len(key) + n * comp(str))) + (O(n * len(key) + n^2 * comp(str))) = O(n * len(key) + n^2 * comp(str))
+            is O(n * k). Worst case in __hashy_probe() method is when adding a new key, all the reachable slots by stepping already have an item,
+            except when an empty position/DeletedItemObject is found at the last iteration of iterating the items in the table.
+            Worst case of __setitem__() method happens when the hash table requires rehashing after adding an item, the worst case of __rehash() method is O(n^2 * k).
+            Thus, the overall complexity is dominated by the __rehash() complexity, ie. O(n * k) + O(n^2 * k) = O(n^2 * k)
         """
-        position = self.__hashy_probe(key, True) # best: O(len(key)), worst: O(len(key) + n * comp(str))
+        position = self.__hashy_probe(key, True)
 
-        # adding new key
+        # new key can be added, update length first
         if self.__array[position] is None or self.__array[position] is DeletedItem:
             self.__length += 1
 
-        # updating data
+        # adding (setting) new key data value / updating data if key ald exist
         self.__array[position] = (key, data)
 
         # Check if we need to rehash after adding an item
-        if (self.__length + 1) > self.table_size * 2 / 3 and self.__size_index < len(self.TABLE_SIZES) - 1:
-            self.__rehash() #best: O(n * len(key)), worst: O(n * len(key) + n^2 * comp(str))
+        if self.__length > self.table_size * 2 / 3 and self.__size_index < len(self.TABLE_SIZES) - 1:
+            self.__rehash()
 
     def __delitem__(self, key: str) -> None:
         """
@@ -302,22 +311,22 @@ class LazyDoubleTable(HashTable[str, V]):
             None
 
         Complexity:
-            n = the table size
+            k = length of the key
+            n = number of items in the table
 
-            Best Case Complexity: O(len(key))
-            The position of the to be deleted item is found using __hashy_probe() method where the best case is O(len(key)).
+            Best Case Complexity: O(k)
+            The position of the to be deleted item is found using __hashy_probe() method where the best case is O(k).
             Best case of __hashy_probe() when is_insert = False, is when searching for an existing key,
-            the tuple storing the wanted key and value is found exactly at the hash position of the key without probing,
-            Thus, the overall complexity is dominated by the best case of __hashy_probe() method ie, O(len(key)).
+            the tuple storing the wanted key and value is found exactly at the hash position of the key without probing, where no collision occurs.
+            Thus, the overall complexity is dominated by the best case of __hashy_probe() method ie, O(k).
 
-            Worst Case Complexity: O(len(key) + n * comp(str))
-            The position of the to be deleted item is found using __hashy_probe() method where the worst case is O(len(key) + n * comp(str)).
+            Worst Case Complexity: O(n * k)
+            The position of the to be deleted item is found using __hashy_probe() method where the worst case is O(n * k).
             Worst case of __hashy_probe() when is_insert = False, is when searching for an existing key, all the reachable slots by stepping do not have the key we are searching for
-            until we reach the last iteration of iterating the table size this cause the for loop to loop through the items in hash table due to collisions.
-
-            Thus, the overall complexity is dominated by the worst case of __hashy_probe() method ie, O(len(key) + n * comp(str)).
+            until we reach the last iteration of iterating the items in the table.
+            Thus, the overall complexity is dominated by the worst case of __hashy_probe() method ie, O(n * k).
         """
-        position = self.__hashy_probe(key, False)  # best: O(len(key)), worst: O(len(key) + n * comp(str))
+        position = self.__hashy_probe(key, False)
         self.__array[position] = DeletedItem
         self.__length -= 1
 
@@ -332,34 +341,33 @@ class LazyDoubleTable(HashTable[str, V]):
             None
 
         Complexity:
-            n = len(self), ie. the number of items in the current array
+            k = length of the key
+            n = number of items in the table
 
-            Best Case Complexity: O(n * len(key))
+            Best Case Complexity: O(n * k)
             while copying all the items in the old array to the new array,the for loop will iterate n times,
              __setitem__() magic method is invoked while assigning new key value pair in the new array, which will invoked the __hashy_probe() method also.
-            The best case of __hashy_probe() when is_insert = True is O(len(key)),
-            when adding a new key, an empty position is found exactly at the hash position of the key where no collision occurs.
-            Thus, the overall complexity is O(n) * O(len(key)) = O(n * len(key))
+            The best case of __hashy_probe() when is_insert = True is O(k),
+            where when adding a new key, an empty position is found exactly at the hash position of the key without probing, where no collision occurs.
+            In this case, it means all items can be inserted immediately after being hashed with no probing needed.
+            Thus, the overall complexity is O(n) * O(k) = O(n * k)
 
-            Worst Case Complexity: O(n * len(key) + n^2 * comp(str))
+            Worst Case Complexity: O(n^2 * k)
             while copying all the items in the old array to the new array,the for loop will iterate n times,
              __setitem__() magic method is invoked while assigning new key value pair in the new array, which will invoked the __hashy_probe() method also.
-            The worst case of __hashy_probe() when is_insert = True is O(len(key) + n * comp(str)),
-            when adding a new key, all the reachable slots by stepping already have an item, except an empty position/DeletedItemObject is found at the last iteration,
-            this cause the for loop to loop through the items in hash table due to collisions.
-            Thus, the overall complexity is O(n) * O(len(key) + n * comp(str)) = O(n * len(key) + n^2 * comp(str))
+            The worst case of __setitem__() is not used because while rehashing, another rehash in __setitem__() will not happen as the table is already being resized.
+            Thus, The worst case of __hashy_probe() in __setitem__() is used instead. The worst case of __hashy_probe() when is_insert = True is O(n * k),
+            where when all items need maximum probing to be inserted in the new table.
+            Thus, the overall complexity is O(n) * O(n * k) = O(n^2 * k)
         """
         old_array = self.__array
 
         self.__size_index += 1 #moving to the next table size
+        self.__array = ArrayR(self.TABLE_SIZES[self.__size_index])
 
-        if self.__size_index >= len(self.TABLE_SIZES):
-            raise RuntimeError("Table is full")
-
-        self.__array = ArrayR(self.TABLE_SIZES[self.__size_index]) # O(m), m= new table size
         self.__length = 0
 
-        for item in old_array: #O(n)
+        for item in old_array:
             if item is not None and item is not DeletedItem:
                 key, value = item
-                self[key] = value #calls set item, calls hashy probe, use hashy best worst not setitem, # best: O(len(key)), worst :O(hash(key) + N*comp(str))
+                self[key] = value
